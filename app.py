@@ -7,7 +7,7 @@ st.set_page_config(page_title="Miracle Analyst AI", page_icon="📊")
 st.title("📊 Miracle Analyst AI")
 
 # 2. Your Definitive Backend URL
-# Based on your Swagger screenshot: POST /run
+# Based on your Swagger screenshot for the POST /run endpoint
 API_URL = "https://adk-default-service-name-43463140793.us-east1.run.app/run"
 
 # 3. Setup Chat Memory
@@ -34,7 +34,7 @@ if prompt := st.chat_input("Ex: List the tables in thelook_ecommerce"):
         
         try:
             # ---------------------------------------------------------
-            # THE PAYLOAD: Matching your Swagger Schema exactly
+            # THE PAYLOAD: Matches the "Run Agent" schema exactly
             # ---------------------------------------------------------
             payload = {
                 "appName": "ecommerce_agent",
@@ -51,32 +51,38 @@ if prompt := st.chat_input("Ex: List the tables in thelook_ecommerce"):
                 headers={"Content-Type": "application/json"}
             )
             
-            if response.status_code == 200:
-                data = response.json()
-                
-                # NAVIGATION LOGIC: 
-                # We look into the 'events' list returned by the ADK
-                events = data.get("events", [])
-                ai_answer = ""
-
-                if events:
-                    # Search backwards for the most recent text response
-                    for event in reversed(events):
-                        # Look for content -> parts -> text structure from your schema
-                        parts = event.get("content", {}).get("parts", [])
-                        if parts and "text" in parts[0]:
-                            ai_answer = parts[0]["text"]
-                            break
-                
-                if not ai_answer:
-                    ai_answer = "I've processed the request, but no text response was generated. Please check the session state."
-
-                message_placeholder.markdown(ai_answer)
-                st.session_state.messages.append({"role": "assistant", "content": ai_answer})
+            # --- ERROR HANDLING FOR NON-JSON RESPONSES ---
+            if response.status_code != 200:
+                # If server returns HTML error or 404, this prevents the "Expecting value" crash
+                error_msg = f"**Server Error {response.status_code}:** {response.text}"
+                message_placeholder.error(error_msg)
             
+            elif response.text:
+                try:
+                    data = response.json()
+                    
+                    # Extracting answer from the 'events' list
+                    events = data.get("events", [])
+                    ai_answer = ""
+
+                    if events:
+                        # Search for the most recent text response in content.parts
+                        for event in reversed(events):
+                            parts = event.get("content", {}).get("parts", [])
+                            if parts and "text" in parts[0]:
+                                ai_answer = parts[0]["text"]
+                                break
+                    
+                    if not ai_answer:
+                        ai_answer = "The agent processed the request but did not return a text response."
+
+                    message_placeholder.markdown(ai_answer)
+                    st.session_state.messages.append({"role": "assistant", "content": ai_answer})
+                
+                except Exception as json_err:
+                    message_placeholder.error(f"Failed to parse JSON. Raw Response: {response.text}")
             else:
-                error_detail = response.json().get('detail', 'Unknown error')
-                message_placeholder.error(f"Backend Error {response.status_code}: {error_detail}")
+                message_placeholder.error("Server sent an empty response.")
                 
         except Exception as e:
             message_placeholder.error(f"Connection failed: {e}")
