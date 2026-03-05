@@ -5,7 +5,6 @@ import json
 # 1. Setup the UI Page
 st.set_page_config(page_title="Miracle Analyst AI", page_icon="📊")
 st.title("📊 Miracle Analyst AI")
-st.caption("Frontend connected live to Google Cloud Run & BigQuery")
 
 # 2. Your Deployed Backend URL
 API_URL = "https://adk-default-service-name-43463140793.us-east1.run.app/ecommerce_agent/swarna/chat_01"
@@ -13,7 +12,7 @@ API_URL = "https://adk-default-service-name-43463140793.us-east1.run.app/ecommer
 # 3. Setup Chat Memory
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Hello! I am connected to your deployed Cloud Run API. What would you like to know?"}
+        {"role": "assistant", "content": "Hello! I am Cloud Data Analyst. What would you like to know about bigquery-public-data.thelook_ecommerce dataset?"}
     ]
 
 # 4. Display previous chat messages
