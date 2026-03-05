@@ -7,7 +7,7 @@ st.set_page_config(page_title="Miracle Analyst AI", page_icon="📊")
 st.title("📊 Miracle Analyst AI")
 
 # 2. Your Deployed Backend URL
-API_URL = "https://adk-default-service-name-43463140793.us-east1.run.app/ecommerce_agent/swarna/chat_01/run"
+API_URL = "https://adk-default-service-name-43463140793.us-east1.run.app/apps/ecommerce_agent/users/swarna/sessions/chat_01"
 # 3. Setup Chat Memory
 if "messages" not in st.session_state:
     st.session_state.messages = [
