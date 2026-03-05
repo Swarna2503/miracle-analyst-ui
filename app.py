@@ -6,13 +6,14 @@ import json
 st.set_page_config(page_title="Miracle Analyst AI", page_icon="📊")
 st.title("📊 Miracle Analyst AI")
 
-# 2. Your Deployed Backend URL
-# We use the /run endpoint to ensure the agent actually executes its logic
-API_URL = "https://adk-default-service-name-43463140793.us-east1.run.app/apps/ecommerce_agent/users/swarna/sessions/chat_01"
-# 3. Setup Chat Memory (Session State)
+# 2. Your Definitive Backend URL
+# Based on your Swagger screenshot: POST /run
+API_URL = "https://adk-default-service-name-43463140793.us-east1.run.app/run"
+
+# 3. Setup Chat Memory
 if "messages" not in st.session_state:
     st.session_state.messages = [
-        {"role": "assistant", "content": "Hello! I am your Cloud Data Analyst. What would you like to know about the `thelook_ecommerce` dataset?"}
+        {"role": "assistant", "content": "Hello! I am your Cloud Data Analyst. Ask me anything about the ecommerce dataset."}
     ]
 
 # 4. Display previous chat messages
@@ -21,53 +22,61 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # 5. The Input Box
-if prompt := st.chat_input("Ask about top product categories..."):
-    # Show user message in UI
+if prompt := st.chat_input("Ex: List the tables in thelook_ecommerce"):
+    # Show user message
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
     # Show AI response placeholder
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        message_placeholder.markdown("🔍 *Querying BigQuery via Cloud Run...*")
+        message_placeholder.markdown("🔍 *Querying BigQuery...*")
         
         try:
-            # Send the request to your Cloud Run Backend
+            # ---------------------------------------------------------
+            # THE PAYLOAD: Matching your Swagger Schema exactly
+            # ---------------------------------------------------------
+            payload = {
+                "appName": "ecommerce_agent",
+                "userId": "swarna",
+                "sessionId": "chat_01",
+                "newMessage": {
+                    "parts": [{"text": prompt}]
+                }
+            }
+            
             response = requests.post(
                 API_URL, 
-                json={"text": prompt},
+                json=payload,
                 headers={"Content-Type": "application/json"}
             )
             
             if response.status_code == 200:
                 data = response.json()
                 
-                # DATA EXTRACTION LOGIC:
-                # The agent stores its final answer in the 'events' list.
-                # We look for the last 'text' event to show the user.
+                # NAVIGATION LOGIC: 
+                # We look into the 'events' list returned by the ADK
                 events = data.get("events", [])
-                
-                if events:
-                    # Find the last event that contains text (the AI's answer)
-                    ai_answer = ""
-                    for event in reversed(events):
-                        if "text" in event:
-                            ai_answer = event["text"]
-                            break
-                    
-                    if not ai_answer:
-                        ai_answer = "I processed the data, but didn't generate a text summary. Check the raw logs."
-                else:
-                    ai_answer = "The agent received your message but hasn't generated an event yet. Please try a more specific question."
+                ai_answer = ""
 
-                # Update the UI with the actual answer
+                if events:
+                    # Search backwards for the most recent text response
+                    for event in reversed(events):
+                        # Look for content -> parts -> text structure from your schema
+                        parts = event.get("content", {}).get("parts", [])
+                        if parts and "text" in parts[0]:
+                            ai_answer = parts[0]["text"]
+                            break
+                
+                if not ai_answer:
+                    ai_answer = "I've processed the request, but no text response was generated. Please check the session state."
+
                 message_placeholder.markdown(ai_answer)
                 st.session_state.messages.append({"role": "assistant", "content": ai_answer})
-                
-            elif response.status_code == 404:
-                message_placeholder.error("Backend Error: 404. Please check if the API URL and Agent Name are correct.")
+            
             else:
-                message_placeholder.error(f"Backend Error: {response.status_code}")
+                error_detail = response.json().get('detail', 'Unknown error')
+                message_placeholder.error(f"Backend Error {response.status_code}: {error_detail}")
                 
         except Exception as e:
             message_placeholder.error(f"Connection failed: {e}")
